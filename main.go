@@ -137,11 +137,8 @@ func main() {
 		if len(arg[2:]) < 3 {
 			return
 		}
-		for i := 0; i < 9999; i++ {
-			numstr := fmt.Sprintf("%04d", i)
-			filenamestr := "event_cn_" + numstr + "_spriteatlas"
-			decrypt(filenamestr, arg[3], arg[4])
-		}
+		decrypt(arg[2], arg[3], arg[4])
+		
 		
 
 	} else if arg[1] == "encrypt" {
