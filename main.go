@@ -100,7 +100,9 @@ func encrypt(inFile string, outFilePath string) {
 
 	encryptHeader := make([]byte, 1024+8)
 	magicBytes := []byte{0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08}
-	mode.CryptBlocks(encryptHeader, append(file_content[:1024], magicBytes...))
+	file_header := make([]byte, 1024+8) //may as well make this 8 bytes longer so we can have the magic bytes in it too without needing another alloc
+	copy(file_header,file_content[:1024])
+	mode.CryptBlocks(encryptHeader, append(file_header[:1024], magicBytes...))
 
 	out_file_content := append(append(encryptHeader[:1024], file_content[1024:]...), encryptHeader[1024:1024+8]...)
 	offset_bytes := make([]byte, calc_file_offset)
@@ -138,9 +140,6 @@ func main() {
 			return
 		}
 		decrypt(arg[2], arg[3], arg[4])
-		
-		
-
 	} else if arg[1] == "encrypt" {
 		if len(arg[2:]) < 2 {
 			return
