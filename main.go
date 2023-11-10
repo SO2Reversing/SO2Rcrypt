@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+func merge(slices ...[]byte) []byte {
+	totalsize := 0
+	for _, slice := range slices {
+		totalsize += len(slice)
+	}
+
+	merged := make([]byte, totalsize)
+	buf_idx := 0
+	for _, slice := range slices {
+		copy(merged[buf_idx:], slice)
+		buf_idx += len(slice)
+	}
+	return merged
+}
+
 func getCryptParams(originalName string) (newfilename string, xor_key [7]byte, dk []byte, iv []byte, file_offset int, key_start_pos int) {
 	//md5 filename
 	filenamehash := md5.New()
@@ -66,9 +81,8 @@ func decrypt(originalName string, inFilePath string, outFilePath string) {
 	decryptHeader := make([]byte, 1024)
 	mode.CryptBlocks(decryptHeader, unxor_file_content[:1024])
 
-	full_decrypt_file_content := append(decryptHeader, unxor_file_content[1024:]...)
-
-	//os.WriteFile(outFilePath+originalName, full_decrypt_file_content, os.ModePerm)
+	//Remove the last 8 bytes, since they are not valid data, they are just a string of 8 magic bytes
+	full_decrypt_file_content := merge(decryptHeader, unxor_file_content[1024:len(unxor_file_content)-8])
 
 	mkerr := os.MkdirAll(outFilePath, os.ModePerm)
 	if mkerr != nil {
@@ -93,6 +107,7 @@ func encrypt(inFile string, outFilePath string) {
 	file_content, err := os.ReadFile(inFile)
 	if err != nil {
 		fmt.Print(err)
+		return
 	}
 
 	block, _ := des.NewCipher(dk)
@@ -100,13 +115,9 @@ func encrypt(inFile string, outFilePath string) {
 
 	encryptHeader := make([]byte, 1024+8)
 	magicBytes := []byte{0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08}
-	file_header := make([]byte, 1024+8) //may as well make this 8 bytes longer so we can have the magic bytes in it too without needing another alloc
-	copy(file_header,file_content[:1024])
-	mode.CryptBlocks(encryptHeader, append(file_header[:1024], magicBytes...))
+	mode.CryptBlocks(encryptHeader, merge(file_content[:1024], magicBytes))
 
-	out_file_content := append(append(encryptHeader[:1024], file_content[1024:]...), encryptHeader[1024:1024+8]...)
-	offset_bytes := make([]byte, calc_file_offset)
-	out_file_content = append(offset_bytes, out_file_content...)
+	out_file_content := merge(make([]byte, calc_file_offset), encryptHeader[:1024], file_content[1024:], encryptHeader[1024:1024+8])
 	xor_out_file_content := make([]byte, len(out_file_content))
 
 	for i := 0; i < len(out_file_content); i++ {
